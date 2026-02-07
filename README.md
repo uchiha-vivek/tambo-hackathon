@@ -80,7 +80,7 @@ npm install
 
 # Configure environment
 cp example.env.local .env.local
-# Add your NEXT_PUBLIC_TAMBO_API_KEY and NEXT_PUBLIC_TAMBO_BASE_URL
+# Add your NEXT_PUBLIC_TAMBO_API_KEY 
 
 # Start development server
 npm run dev

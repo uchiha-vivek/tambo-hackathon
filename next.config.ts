@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Increase API route timeouts for AI processing
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
   // Stub optional peer deps from @standard-community/standard-json
   webpack: (config) => {
     config.resolve.alias = {

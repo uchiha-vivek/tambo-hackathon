@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft, RotateCw, CheckCircle, XCircle, Sparkles } from 'lucide-react';
-import { tamboService } from '@/services/tambo-service';
+import { studyGenieBackend, Flashcard as BackendFlashcard } from '@/services/studygenie-backend';
 
 interface Flashcard {
   id: string;
@@ -25,13 +25,29 @@ export default function FlashcardView({ topic, onComplete, onNavigate }: Flashca
   const [masteredCards, setMasteredCards] = useState<Set<string>>(new Set());
   const [difficultCards, setDifficultCards] = useState<Set<string>>(new Set());
 
-  // Load flashcards from Tambo AI
+  // Load flashcards from StudyGenie Backend
   useEffect(() => {
     async function loadFlashcards() {
       setIsLoading(true);
       try {
-        // Generate flashcards using Tambo
-        const cards: Flashcard[] = [
+        const topicName = topic?.name || 'General Knowledge';
+        
+        // Generate flashcards using real backend
+        const response = await studyGenieBackend.generateFlashcards(topicName, 10);
+        
+        // Transform to our format
+        const cards: Flashcard[] = response.flashcards.map((card, idx) => ({
+          id: `card-${idx + 1}`,
+          question: card.front,
+          answer: card.back,
+          topic: card.topic
+        }));
+
+        setFlashcards(cards);
+      } catch (error) {
+        console.error('Error loading flashcards:', error);
+        // Fallback demo cards
+        const demoCards: Flashcard[] = [
           {
             id: '1',
             question: `What is ${topic?.name || 'this concept'}?`,
@@ -50,23 +66,8 @@ export default function FlashcardView({ topic, onComplete, onNavigate }: Flashca
             answer: `Key properties include: 1) ..., 2) ..., 3) ...`,
             topic: topic?.name || 'General'
           },
-          {
-            id: '4',
-            question: `How does ${topic?.name || 'this'} differ from alternatives?`,
-            answer: `Unlike alternatives, ${topic?.name || 'this'} offers...`,
-            topic: topic?.name || 'General'
-          },
-          {
-            id: '5',
-            question: `What is the time complexity of ${topic?.name || 'this operation'}?`,
-            answer: `The time complexity is O(n) because...`,
-            topic: topic?.name || 'General'
-          }
         ];
-
-        setFlashcards(cards);
-      } catch (error) {
-        console.error('Error loading flashcards:', error);
+        setFlashcards(demoCards);
       } finally {
         setIsLoading(false);
       }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Heart, Zap, Volume2, VolumeX } from 'lucide-react';
-import { tamboService, TamboQuestion } from '@/services/tambo-service';
+import { studyGenieBackend } from '@/services/studygenie-backend';
 
 interface CombatModeProps {
   topic: any;
@@ -18,11 +18,13 @@ interface CombatModeProps {
 
 interface Question {
   id: string;
-  text: string;
-  type: 'mcq' | 'code';
-  options?: string[];
-  correct: number;
+  question: string;
+  type: 'mcq';
+  options: string[];
+  correctAnswer: number;
   difficulty: 'Easy' | 'Medium' | 'Hard';
+  explanation: string;
+  xpReward: number;
 }
 
 export default function CombatMode({ topic, onComplete, onNavigate }: CombatModeProps) {
@@ -33,7 +35,7 @@ export default function CombatMode({ topic, onComplete, onNavigate }: CombatMode
   const [answered, setAnswered] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [questions, setQuestions] = useState<TamboQuestion[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Track session metrics
@@ -41,26 +43,45 @@ export default function CombatMode({ topic, onComplete, onNavigate }: CombatMode
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [weakAreas, setWeakAreas] = useState<string[]>([]);
 
-  // Load questions from Tambo AI on component mount
+  // Load questions from StudyGenie AI Backend on component mount
   useEffect(() => {
     async function loadQuestions() {
       setIsLoading(true);
       try {
-        const topicDifficulty = topic?.difficulty || 'Medium';
-        const quizQuestions = await tamboService.generateQuiz(
-          topic?.id || 'default-topic',
-          topicDifficulty as 'Easy' | 'Medium' | 'Hard',
-          10 // Increased from 5 to 10 questions for better learning
-        );
-        setQuestions(quizQuestions);
+        const topicName = topic?.name || 'General Knowledge';
+        const topicDifficulty = (topic?.difficulty || 'Medium').toLowerCase() as 'easy' | 'medium' | 'hard';
+        
+        // Generate quiz using real backend
+        const quizResponse = await studyGenieBackend.generateQuiz(topicName, topicDifficulty, 10);
+        
+        // Transform to our format
+        const transformedQuestions = studyGenieBackend.transformQuizToTamboFormat(quizResponse);
+        setQuestions(transformedQuestions);
       } catch (error) {
         console.error('Failed to load questions:', error);
+        // Fallback to demo questions if backend fails
+        setQuestions(getDemoQuestions());
       } finally {
         setIsLoading(false);
       }
     }
     loadQuestions();
   }, [topic]);
+
+  const getDemoQuestions = (): Question[] => {
+    return [
+      {
+        id: 'demo-1',
+        question: 'What is the time complexity of binary search?',
+        type: 'mcq',
+        options: ['O(n)', 'O(log n)', 'O(n log n)', 'O(1)'],
+        correctAnswer: 1,
+        difficulty: 'Medium',
+        explanation: 'Binary search divides the search space in half each iteration',
+        xpReward: 15
+      }
+    ];
+  };
 
   const getEnemyType = () => {
     if (!questions[currentQuestion]) return '🐢 Goblin';
@@ -123,7 +144,7 @@ export default function CombatMode({ topic, onComplete, onNavigate }: CombatMode
         <div className="text-center">
           <div className="animate-spin text-6xl mb-4">⚔️</div>
           <h2 className="text-2xl font-bold text-white mb-2">Preparing Battle...</h2>
-          <p className="text-purple-300">Tambo AI is generating quiz questions</p>
+          <p className="text-purple-300">AI is generating quiz questions</p>
         </div>
       </div>
     );

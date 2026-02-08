@@ -262,30 +262,45 @@ class StudyGenieBackendService {
 
     // Validate skillMap structure
     if (!skillMap || !skillMap.skill_map || !Array.isArray(skillMap.skill_map)) {
-      console.error('Invalid skillMap structure:', skillMap);
+      console.error('❌ Invalid skillMap structure:', skillMap);
       throw new Error('Invalid skill map data received from backend');
     }
 
-    // Group topics into units - since backend doesn't always provide difficulty,
-    // we'll group them by topic order or assign default difficulties
-    const topicsPerUnit = 5; // Group every 5 topics into a unit
     const allTopics = skillMap.skill_map;
+    
+    if (allTopics.length === 0) {
+      console.error('❌ Empty skill_map array');
+      throw new Error('Backend returned empty skill map');
+    }
 
+    console.log(`[Transform] Processing ${allTopics.length} topics into units`);
+
+    // Group topics into units - 3-5 topics per unit (like demo)
+    const topicsPerUnit = Math.max(3, Math.min(5, Math.ceil(allTopics.length / 3)));
+    
     for (let i = 0; i < allTopics.length; i += topicsPerUnit) {
       const topicBatch = allTopics.slice(i, i + topicsPerUnit);
       
+      // Get unit name from first topic or use generic name
+      const firstTopicName = topicBatch[0]?.topic || 'Topics';
+      const unitName = topicBatch.length === 1 
+        ? firstTopicName 
+        : `${firstTopicName} & Related Topics`;
+      
       const unit = {
         id: `unit-${unitId}`,
-        name: `Module ${unitId}: ${topicBatch[0]?.topic || 'Topics'}`,
+        name: unitName,
         topics: topicBatch.map((topic, idx) => ({
           id: `${unitId}-${idx + 1}`,
-          name: topic.topic,
+          name: topic.topic || `Topic ${idx + 1}`,
+          title: topic.topic || `Topic ${idx + 1}`, // Support both name and title
           difficulty: topic.difficulty || this.assignDefaultDifficulty(i + idx, allTopics.length),
-          subtopics: topic.subtopics,
-          description: topic.description,
+          subtopics: topic.subtopics || [],
+          description: topic.description || '',
           estimatedHours: topic.estimated_hours || 2,
           prerequisites: topic.prerequisites || [],
-          status: 'locked' as const,
+          status: 'inProgress' as const,
+          xp: 200, // Default XP
         })),
       };
 
@@ -293,11 +308,15 @@ class StudyGenieBackendService {
       unitId++;
     }
 
-    return {
+    const result = {
       curriculum: 'AI-Generated Curriculum',
       units,
-      totalTopics: skillMap.total_topics,
+      totalTopics: skillMap.total_topics || allTopics.length,
     };
+    
+    console.log(`[Transform] ✅ Created ${units.length} units with ${allTopics.length} topics`);
+    
+    return result;
   }
 
   private assignDefaultDifficulty(index: number, total: number): 'Easy' | 'Medium' | 'Hard' {

@@ -3,34 +3,96 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 
-const CozyRoomEnhanced = dynamic<any>(() => import('@/components/study-genie/cozy-room-enhanced'), { ssr: false });
-const SkillTreeEnhanced = dynamic<any>(() => import('@/components/study-genie/skill-tree-enhanced'), { ssr: false });
-const DashboardEnhanced = dynamic<any>(() => import('@/components/study-genie/dashboard-enhanced'), { ssr: false });
-const SyllabusUpload = dynamic<any>(() => import('@/components/study-genie/syllabus-upload'), { ssr: false });
-const CombatMode = dynamic<any>(() => import('@/components/study-genie/combat-mode'), { ssr: false });
-const ScoreCard = dynamic<any>(() => import('@/components/study-genie/scorecard'), { ssr: false });
-const PracticeEditorEnhanced = dynamic<any>(() => import('@/components/study-genie/practice-editor-enhanced'), { ssr: false });
-const LandingPage = dynamic<any>(() => import('@/components/study-genie/landing-page'), { ssr: false });
-const FlashcardView = dynamic<any>(() => import('@/components/study-genie/flashcard-view'), { ssr: false });
+// Dynamic imports for code splitting and performance
+const CozyRoomEnhanced = dynamic(() => import('@/components/study-genie/cozy-room-enhanced'), { ssr: false });
+const SkillTreeEnhanced = dynamic(() => import('@/components/study-genie/skill-tree-enhanced'), { ssr: false });
+const DashboardEnhanced = dynamic(() => import('@/components/study-genie/dashboard-enhanced'), { ssr: false });
+const SyllabusUpload = dynamic(() => import('@/components/study-genie/syllabus-upload'), { ssr: false });
+const CombatMode = dynamic(() => import('@/components/study-genie/combat-mode'), { ssr: false });
+const ScoreCard = dynamic(() => import('@/components/study-genie/scorecard'), { ssr: false });
+const PracticeEditorEnhanced = dynamic(() => import('@/components/study-genie/practice-editor-enhanced'), { ssr: false });
+const LandingPage = dynamic(() => import('@/components/study-genie/landing-page'), { ssr: false });
+const FlashcardView = dynamic(() => import('@/components/study-genie/flashcard-view'), { ssr: false });
 
 type ViewType = 'landing' | 'dashboard' | 'cozyRoom' | 'skillTree' | 'upload' | 'combat' | 'editor' | 'flashcards';
 
+interface Syllabus {
+  curriculum?: string;
+  units?: Array<{
+    id: string;
+    name: string;
+    topics: Array<{
+      id: string;
+      name: string;
+      difficulty?: string;
+      status?: string;
+    }>;
+  }>;
+}
+
+interface Topic {
+  id: string;
+  name: string;
+  difficulty?: string;
+  status?: string;
+}
+
 export default function StudyGeniePage() {
   const [currentView, setCurrentView] = useState<ViewType>('landing');
-  const [syllabus, setSyllabus] = useState<any>(null);
-  const [selectedTopic, setSelectedTopic] = useState<any>(null);
+  const [syllabus, setSyllabus] = useState<Syllabus | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [showScoreCard, setShowScoreCard] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
-  const [combatResults, setCombatResults] = useState<any>({ 
+  const [combatResults, setCombatResults] = useState<{
+    score: number;
+    questionsAnswered: number;
+    correctAnswers: number;
+    timeSpent: number;
+    weakAreas: string[];
+  }>({ 
     score: 0, 
     questionsAnswered: 0, 
     correctAnswers: 0, 
     timeSpent: 0,
-    weakAreas: [] as string[]
+    weakAreas: []
   });
 
-  const handleSyllabusUpload = (data: any) => {
-    setSyllabus(data);
+  const handleSyllabusUpload = (data: Syllabus) => {
+    console.log('[Page] 📥 Syllabus uploaded (raw):', data);
+    
+    // Ensure data structure matches demo format exactly
+    const processedData: Syllabus = {
+      curriculum: data.curriculum || 'AI-Generated Curriculum',
+      units: (data.units || []).map((unit: any, unitIdx: number) => ({
+        id: unit.id || `unit-${unitIdx + 1}`,
+        name: unit.name || unit.title || `Unit ${unitIdx + 1}`,
+        topics: (unit.topics || []).map((topic: any, topicIdx: number) => ({
+          id: topic.id || `${unit.id || `unit-${unitIdx + 1}`}-${topicIdx + 1}`,
+          name: topic.name || topic.title || `Topic ${topicIdx + 1}`,
+          difficulty: topic.difficulty || 'Medium',
+          status: topic.status || 'inProgress',
+          xp: topic.xp || 200,
+        }))
+      }))
+    };
+    
+    console.log('[Page] ✅ Processed syllabus:', {
+      curriculum: processedData.curriculum,
+      unitsCount: processedData.units.length,
+      totalTopics: processedData.units.reduce((sum: number, u: any) => sum + (u.topics?.length || 0), 0),
+      units: processedData.units.map((u: any) => ({
+        name: u.name,
+        topicsCount: u.topics.length
+      }))
+    });
+    
+    if (processedData.units.length === 0) {
+      console.error('[Page] ❌ No units found in syllabus!');
+      alert('⚠️ No topics found in the uploaded syllabus. Please check the PDF content.');
+      return;
+    }
+    
+    setSyllabus(processedData);
     setIsDemoMode(false);
     setCurrentView('dashboard');
   };
@@ -66,7 +128,13 @@ export default function StudyGeniePage() {
     setCurrentView('dashboard');
   };
 
-  const handleCombatComplete = (results: any) => {
+  const handleCombatComplete = (results: {
+    score?: number;
+    questionsAnswered?: number;
+    correctAnswers?: number;
+    timeSpent?: number;
+    weakAreas?: string[];
+  }) => {
     setCombatResults({
       score: results.score || 0,
       questionsAnswered: results.questionsAnswered || 0,
@@ -77,32 +145,35 @@ export default function StudyGeniePage() {
     setShowScoreCard(true);
   };
 
-  const handleNavigate = (view: string) => {
+  const handleNavigate = (view: string, topic?: any) => {
+    if (topic) {
+      setSelectedTopic(topic);
+    }
     setCurrentView(view as ViewType);
   };
 
-  const handleTopicSelect = (topic: any) => {
+  const handleTopicSelect = (topic: Topic) => {
     setSelectedTopic(topic);
   };
 
   return (
-    <div className="w-full h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden">
+    <div className="w-full h-screen bg-[#3FDFD5]/5 overflow-hidden" style={{ backgroundColor: '#f5f5f5' }}>
       {/* Navigation - Hide on landing page */}
       {currentView !== 'landing' && (
-        <nav className="bg-slate-800/50 backdrop-blur border-b border-purple-500/20 px-6 py-4 flex items-center justify-between">
+        <nav className="bg-[#61210F] backdrop-blur-lg border-b border-[#61210F]/20 shadow-sm px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🎮</span>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <span className="text-2xl">📚</span>
+            <h1 className="text-2xl font-bold text-white">
               StudyGenie
             </h1>
             {isDemoMode && (
-              <span className="px-3 py-1 bg-yellow-500/20 border border-yellow-500/40 rounded-full text-yellow-300 text-sm font-semibold">
+              <span className="px-3 py-1 bg-[#3FDFD5]/20 border border-[#3FDFD5]/40 rounded-full text-[#3FDFD5] text-xs font-semibold">
                 Demo Mode
               </span>
             )}
           </div>
           <div className="flex items-center gap-4">
-            <p className="text-purple-200 text-sm italic">"Turn your syllabus into a dungeon"</p>
+            <p className="text-white/80 text-sm">Turn your syllabus into a learning adventure</p>
             {isDemoMode && (
               <button
                 onClick={() => {
@@ -110,7 +181,7 @@ export default function StudyGeniePage() {
                   setSyllabus(null);
                   setCurrentView('landing');
                 }}
-                className="px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg text-white text-sm transition-all"
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white text-sm font-medium transition-all"
               >
                 Exit Demo
               </button>
@@ -129,7 +200,10 @@ export default function StudyGeniePage() {
         )}
 
         {currentView === 'upload' && (
-          <SyllabusUpload onUpload={handleSyllabusUpload} />
+          <SyllabusUpload 
+            onUpload={handleSyllabusUpload}
+            onNavigate={handleNavigate}
+          />
         )}
 
         {currentView === 'dashboard' && syllabus && (
@@ -158,19 +232,40 @@ export default function StudyGeniePage() {
           <CombatMode
             topic={selectedTopic}
             onComplete={handleCombatComplete}
-            onNavigate={handleNavigate}
+            onNavigate={(view) => {
+              if (view === 'skillTree') {
+                setSelectedTopic(null);
+              }
+              handleNavigate(view);
+            }}
           />
         )}
 
         {currentView === 'editor' && selectedTopic && (
-          <PracticeEditorEnhanced topic={selectedTopic.name} />
+          <PracticeEditorEnhanced 
+            topic={selectedTopic.name || selectedTopic.title || selectedTopic.topic || selectedTopic} 
+            onNavigate={(view) => {
+              if (view === 'skillTree') {
+                setSelectedTopic(null);
+              }
+              handleNavigate(view);
+            }}
+          />
         )}
 
         {currentView === 'flashcards' && selectedTopic && (
           <FlashcardView
             topic={selectedTopic}
-            onComplete={() => handleNavigate('skillTree')}
-            onNavigate={handleNavigate}
+            onComplete={() => {
+              setSelectedTopic(null);
+              handleNavigate('skillTree');
+            }}
+            onNavigate={(view) => {
+              if (view === 'skillTree') {
+                setSelectedTopic(null);
+              }
+              handleNavigate(view);
+            }}
           />
         )}
       </div>

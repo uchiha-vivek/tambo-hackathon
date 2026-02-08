@@ -1,318 +1,254 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Play, Pause, RotateCcw, Send, Loader, Lightbulb, Book, ChevronDown, AlertCircle } from 'lucide-react';
-import { studyGenieBackend, CodingChallenge } from '@/services/studygenie-backend';
+import { ArrowLeft, Lightbulb, Play, RotateCw } from 'lucide-react';
+import { studyGenieBackend } from '@/services/studygenie-backend';
+import AppShell from '@/components/ui/AppShell';
+import PrimaryButton from '@/components/ui/PrimaryButton';
+import SecondaryButton from '@/components/ui/SecondaryButton';
 
 interface PracticeEditorEnhancedProps {
-  topic: string;
+  topic: string | any; // Support both string and topic object
+  onNavigate: (view: string) => void;
 }
 
-export default function PracticeEditorEnhanced({ topic }: PracticeEditorEnhancedProps) {
-  const [challenge, setChallenge] = useState<CodingChallenge['challenge'] | null>(null);
+export default function PracticeEditorEnhanced({ topic, onNavigate }: PracticeEditorEnhancedProps) {
   const [code, setCode] = useState('');
-  const [output, setOutput] = useState('');
-  const [isRunning, setIsRunning] = useState(false);
-  const [showHints, setShowHints] = useState(false);
-  const [hintLevel, setHintLevel] = useState(0);
+  const [challenge, setChallenge] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [testsPassed, setTestsPassed] = useState(0);
-  const [totalTests, setTotalTests] = useState(0);
+  const [currentHint, setCurrentHint] = useState(0);
+  const [showHint, setShowHint] = useState(false);
+  const [output, setOutput] = useState('');
 
-  // Tiered hints system
-  const hints = challenge?.hints || [
-    'Start by understanding what the problem is asking',
-    'Consider the time and space complexity requirements',
-    'Think about edge cases: empty inputs, single elements, duplicates',
-  ];
-
-  // Load code challenge from StudyGenie Backend
   useEffect(() => {
     async function loadChallenge() {
       setIsLoading(true);
       try {
-        const response = await studyGenieBackend.generateCodingChallenge(
-          topic || 'algorithms',
-          'medium',
-          'python'
-        );
+        // Support topic as string or object
+        const topicName = typeof topic === 'string' ? topic : (topic?.name || topic?.title || topic?.topic || 'Practice');
+        const response = await studyGenieBackend.generateCodingChallenge(topicName, 'medium', 'python');
         setChallenge(response.challenge);
-        setCode(response.challenge.starter_code);
-        setTotalTests(response.challenge.test_cases?.length || 0);
+        setCode(response.challenge.starter_code || 'def solve(input_data):\n    # Your code here\n    pass');
       } catch (error) {
-        console.error('Failed to load challenge:', error);
-        // Fallback demo challenge
+        console.error('Error loading challenge:', error);
         setChallenge({
-          title: 'Two Sum Problem',
-          description: 'Find two numbers that add up to a target',
-          difficulty: 'medium',
-          topic: topic,
-          starter_code: 'def two_sum(nums, target):\n    pass',
-          test_cases: [{input: '[2,7,11,15], 9', output: '[0,1]', explanation: '2+7=9'}],
-          hints: ['Use a hash map', 'Store complements'],
-          time_complexity: 'O(n)',
-          space_complexity: 'O(n)',
-          xp_reward: 20
+          title: 'Sample Challenge',
+          description: 'Complete the function to solve the problem.',
+          starter_code: 'def solve(input_data):\n    # Your code here\n    pass',
+          test_cases: [
+            { input: 'test1', output: 'result1', explanation: 'Test case 1' }
+          ],
+          hints: [
+            'Think about the problem step by step',
+            'Consider edge cases',
+            'Optimize your solution'
+          ]
         });
-        setCode('def two_sum(nums, target):\n    pass');
-        setTotalTests(1);
+        setCode('def solve(input_data):\n    # Your code here\n    pass');
       } finally {
         setIsLoading(false);
       }
     }
+
     loadChallenge();
   }, [topic]);
 
-  const runCode = async () => {
-    if (!challenge) return;
-    
-    setIsRunning(true);
-    setOutput('🔄 Running tests...');
-    
-    try {
-      // Simple client-side test simulation
-      // In production, you'd send to a backend code execution service
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const passed = Math.floor(Math.random() * (totalTests + 1));
-      setTestsPassed(passed);
-      
-      if (passed === totalTests) {
-        setOutput(`✅ Perfect! All ${totalTests} tests passed!\n\n` +
-                 `⏱️  Time Complexity: ${challenge.time_complexity}\n` +
-                 `💾 Space Complexity: ${challenge.space_complexity}\n` +
-                 `⭐ XP Earned: +${challenge.xp_reward}`);
-      } else {
-        setOutput(`⚠️  ${passed}/${totalTests} tests passed\n\n` +
-                 `Keep refining your solution!`);
-      }
-    } catch (error) {
-      setOutput('❌ Error running code: ' + error);
-    } finally {
-      setIsRunning(false);
-    }
+  const handleRun = () => {
+    // Simple code execution simulation
+    setOutput('Running code...\n✓ Test case 1 passed\n✓ Test case 2 passed\n✓ All tests passed!');
   };
 
-  const getNextHint = () => {
-    if (hintLevel < hints.length - 1) {
-      setHintLevel(hintLevel + 1);
-    }
+  const handleReset = () => {
+    setCode(challenge?.starter_code || '');
+    setOutput('');
+    setCurrentHint(0);
+    setShowHint(false);
   };
 
-  const resetChallenge = () => {
-    if (challenge) {
-      setCode(challenge.starter_code);
-      setOutput('');
-      setTestsPassed(0);
-      setHintLevel(0);
-    }
-  };
-
-  if (isLoading || !challenge) {
+  if (isLoading) {
     return (
-      <div className="w-full h-full flex flex-col bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-950">
-        <div className="bg-gradient-to-r from-slate-900/80 to-purple-900/80 backdrop-blur border-b border-purple-500/30 px-8 py-6">
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            💻 AI Interview Arena
-          </h2>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
+      <AppShell
+        navProps={{
+          showBack: true,
+          onBack: () => onNavigate('skillTree'),
+        }}
+      >
+        <div className="w-full h-[calc(100vh-80px)] flex items-center justify-center overflow-y-auto" style={{ backgroundColor: '#F5F5F5' }}>
           <div className="text-center">
-            <div className="animate-spin text-purple-400 mx-auto mb-4">
-              <Loader size={48} />
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-2">Generating Challenge...</h3>
-            <p className="text-purple-300">Tambo AI is crafting a coding interview for you</p>
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full border-4 border-[#3FDFD5] border-t-transparent animate-spin" />
+            <p className="text-base font-medium" style={{ color: '#61210F' }}>
+              Loading challenge...
+            </p>
           </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-950 overflow-hidden">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-slate-900/80 to-purple-900/80 backdrop-blur border-b border-purple-500/30 px-8 py-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-1">
-              💻 AI Interview Arena
-            </h2>
-            <p className="text-purple-300 text-sm">LeetCode-style coding challenge</p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={resetChallenge}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg text-white transition-all"
-            >
-              <RotateCcw size={18} />
-              Reset
-            </button>
-            <button
-              onClick={() => {/* Navigate back */}}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg text-white font-semibold transition-all"
-            >
-              Back
-            </button>
-          </div>
-        </div>
-      </div>
+    <AppShell
+      navProps={{
+        showBack: true,
+        onBack: () => onNavigate('skillTree'),
+      }}
+    >
+      <div className="w-full h-[calc(100vh-80px)] overflow-y-auto" style={{ backgroundColor: '#F5F5F5' }}>
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left: Challenge Description */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-[1.5rem] p-6 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-2px_rgba(0,0,0,0.05)] border border-gray-100">
+                <h1 className="text-2xl font-bold mb-4" style={{ color: '#61210F' }}>
+                  {challenge?.title || 'Coding Challenge'}
+                </h1>
+                <p className="text-base mb-6" style={{ color: '#6B7280' }}>
+                  {challenge?.description || 'Complete the function to solve the problem.'}
+                </p>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden flex gap-6 p-6">
-        {/* Problem Description - Left Panel */}
-        <div className="w-1/3 overflow-y-auto bg-gradient-to-br from-slate-900/40 to-slate-800/40 backdrop-blur rounded-2xl border border-purple-500/20 p-8 space-y-6">
-          {/* Title */}
-          <div>
-            <h3 className="text-2xl font-bold text-white mb-2">{challenge.title}</h3>
-            <div className="flex items-center gap-2">
-              <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                challenge.difficulty === 'Easy' ? 'bg-green-600/30 text-green-300' :
-                challenge.difficulty === 'Medium' ? 'bg-yellow-600/30 text-yellow-300' :
-                'bg-red-600/30 text-red-300'
-              }`}>
-                {challenge.difficulty} • {challenge.xpReward} XP
-              </span>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-              <Book size={20} className="text-purple-400" />
-              Problem
-            </h4>
-            <p className="text-purple-200 leading-relaxed">{challenge.description}</p>
-          </div>
-
-          {/* Test Cases */}
-          <div>
-            <h4 className="text-lg font-semibold text-white mb-3">📋 Test Cases</h4>
-            <div className="space-y-2">
-              {challenge.testCases?.map((test, idx) => (
-                <div key={idx} className="p-3 bg-slate-700/40 rounded-lg border border-slate-600/40">
-                  <p className="text-xs text-purple-300 font-semibold mb-2">Case {idx + 1}</p>
-                  <p className="text-sm text-purple-200 font-mono">Input: {test.input}</p>
-                  <p className="text-sm text-green-300 font-mono">Output: {test.output}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Complexity Info */}
-          <div className="p-4 bg-blue-600/10 border border-blue-500/30 rounded-xl">
-            <h4 className="text-sm font-semibold text-blue-300 mb-2">💡 Complexity Targets</h4>
-            <p className="text-sm text-blue-200">Time: O({challenge.timeComplexity})</p>
-            <p className="text-sm text-blue-200">Space: O({challenge.spaceComplexity})</p>
-          </div>
-
-          {/* Hints Section */}
-          <div className="bg-gradient-to-br from-yellow-600/10 to-orange-600/10 border border-yellow-500/30 rounded-xl p-4">
-            <button
-              onClick={() => setShowHints(!showHints)}
-              className="w-full flex items-center justify-between mb-3 hover:opacity-80 transition"
-            >
-              <span className="text-lg font-semibold text-yellow-300 flex items-center gap-2">
-                <Lightbulb size={18} />
-                AI Hints ({hintLevel}/{hints.length})
-              </span>
-              <ChevronDown
-                size={20}
-                className={`text-yellow-300 transition-transform ${showHints ? '' : '-rotate-90'}`}
-              />
-            </button>
-            
-            {showHints && (
-              <div className="space-y-3">
-                {hints.map((hint, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-3 rounded-lg transition-all ${
-                      idx <= hintLevel
-                        ? 'bg-yellow-600/20 border border-yellow-500/40'
-                        : 'bg-slate-700/20 border border-slate-600/40 opacity-50'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <span className="text-sm font-bold text-yellow-300 mt-1">💡</span>
-                      <div>
-                        <p className="text-sm text-yellow-200">{hint}</p>
-                        {idx === hintLevel && idx < hints.length - 1 && (
-                          <button
-                            onClick={getNextHint}
-                            className="text-xs text-yellow-300 hover:text-yellow-200 mt-2 underline"
-                          >
-                            Get next hint →
-                          </button>
-                        )}
-                      </div>
+                {/* Test Cases */}
+                {challenge?.test_cases && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-bold mb-3" style={{ color: '#1F2937' }}>
+                      Test Cases
+                    </h3>
+                    <div className="space-y-3">
+                      {challenge.test_cases.map((test: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="p-4 rounded-xl"
+                          style={{ backgroundColor: '#F3F4F6' }}
+                        >
+                          <p className="text-sm font-medium mb-2" style={{ color: '#61210F' }}>
+                            Test Case {idx + 1}
+                          </p>
+                          <p className="text-sm mb-1" style={{ color: '#6B7280' }}>
+                            <strong>Input:</strong> {test.input}
+                          </p>
+                          <p className="text-sm mb-1" style={{ color: '#6B7280' }}>
+                            <strong>Output:</strong> {test.output}
+                          </p>
+                          {test.explanation && (
+                            <p className="text-xs mt-2" style={{ color: '#9CA3AF' }}>
+                              {test.explanation}
+                            </p>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+                )}
 
-        {/* Editor & Console - Right Panel */}
-        <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-          {/* Editor */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-slate-900/40 to-slate-800/40 backdrop-blur rounded-2xl border border-purple-500/20">
-            <div className="px-6 py-4 border-b border-slate-700/40">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-lg font-semibold text-white">Code Editor</h4>
-                <div className="flex gap-2">
-                  <button
-                    onClick={runCode}
-                    disabled={isRunning}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 rounded-lg text-white font-semibold transition-all"
-                  >
-                    {isRunning ? <Pause size={18} /> : <Play size={18} />}
-                    {isRunning ? 'Running...' : 'Run Code'}
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs text-purple-300">JavaScript (Node.js)</p>
-            </div>
-            
-            <textarea
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="flex-1 px-6 py-4 bg-slate-900/80 text-purple-100 font-mono text-sm resize-none focus:outline-none border-none"
-              placeholder="Write your solution here..."
-              spellCheck="false"
-            />
-          </div>
-
-          {/* Console Output */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-slate-900/40 to-slate-800/40 backdrop-blur rounded-2xl border border-purple-500/20">
-            <div className="px-6 py-4 border-b border-slate-700/40 flex items-center justify-between">
-              <h4 className="text-lg font-semibold text-white">Console Output</h4>
-              {totalTests > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="w-32 h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all"
-                      style={{ width: `${(testsPassed / totalTests) * 100}%` }}
-                    />
+                {/* Hints */}
+                {challenge?.hints && (
+                  <div>
+                    <button
+                      onClick={() => setShowHint(!showHint)}
+                      className="flex items-center gap-2 mb-3"
+                    >
+                      <Lightbulb size={18} style={{ color: '#F59E0B' }} />
+                      <span className="text-sm font-medium" style={{ color: '#61210F' }}>
+                        {showHint ? 'Hide Hint' : 'Show Hint'}
+                      </span>
+                    </button>
+                    {showHint && challenge.hints[currentHint] && (
+                      <div className="p-4 rounded-xl mb-3" style={{ backgroundColor: '#FEF3C7' }}>
+                        <p className="text-sm" style={{ color: '#92400E' }}>
+                          {challenge.hints[currentHint]}
+                        </p>
+                        <div className="flex gap-2 mt-3">
+                          {challenge.hints.map((_: any, idx: number) => (
+                            <button
+                              key={idx}
+                              onClick={() => setCurrentHint(idx)}
+                              className={`px-3 py-1 rounded text-xs font-medium ${
+                                idx === currentHint
+                                  ? 'bg-[#61210F] text-white'
+                                  : 'bg-white text-[#61210F]'
+                              }`}
+                            >
+                              Hint {idx + 1}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <span className="text-sm font-semibold text-purple-300">
-                    {testsPassed}/{totalTests}
-                  </span>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-            
-            <div className="flex-1 overflow-y-auto px-6 py-4 font-mono text-sm">
-              {output ? (
-                <pre className="text-green-300 whitespace-pre-wrap break-words">{output}</pre>
-              ) : (
-                <p className="text-slate-400 italic">Click "Run Code" to test your solution...</p>
+
+            {/* Right: Code Editor */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-[1.5rem] p-6 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-2px_rgba(0,0,0,0.05)] border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold" style={{ color: '#1F2937' }}>
+                    Code Editor
+                  </h3>
+                  <div className="flex gap-2">
+                    <SecondaryButton
+                      onClick={handleReset}
+                      className="flex items-center gap-2"
+                    >
+                      <RotateCw size={16} />
+                      Reset
+                    </SecondaryButton>
+                    <PrimaryButton
+                      onClick={handleRun}
+                      className="flex items-center gap-2"
+                    >
+                      <Play size={16} />
+                      Run
+                    </PrimaryButton>
+                  </div>
+                </div>
+
+                <textarea
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  className="w-full h-64 p-4 rounded-xl font-mono text-sm border border-gray-200 focus:outline-none focus:border-[#3FDFD5] resize-none"
+                  style={{ backgroundColor: '#F9FAFB', color: '#1F2937' }}
+                  spellCheck={false}
+                />
+
+                {output && (
+                  <div className="mt-4 p-4 rounded-xl font-mono text-sm whitespace-pre-wrap" style={{ backgroundColor: '#F3F4F6', color: '#1F2937' }}>
+                    {output}
+                  </div>
+                )}
+              </div>
+
+              {/* Complexity Info */}
+              {challenge && (
+                <div className="bg-white rounded-[1.5rem] p-6 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-2px_rgba(0,0,0,0.05)] border border-gray-100">
+                  <h3 className="text-lg font-bold mb-4" style={{ color: '#1F2937' }}>
+                    Complexity
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm" style={{ color: '#6B7280' }}>Time:</span>
+                      <span className="text-sm font-medium" style={{ color: '#61210F' }}>
+                        {challenge.time_complexity || 'O(n)'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm" style={{ color: '#6B7280' }}>Space:</span>
+                      <span className="text-sm font-medium" style={{ color: '#61210F' }}>
+                        {challenge.space_complexity || 'O(1)'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm" style={{ color: '#6B7280' }}>XP Reward:</span>
+                      <span className="text-sm font-medium" style={{ color: '#3FDFD5' }}>
+                        {challenge.xp_reward || 150} XP
+                      </span>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 }

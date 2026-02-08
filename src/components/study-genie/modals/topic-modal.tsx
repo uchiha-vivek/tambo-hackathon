@@ -1,119 +1,116 @@
 'use client';
 
-import { X, BookOpen, Code, Zap } from 'lucide-react';
+import { X, BookOpen, Code, Zap, Target } from 'lucide-react';
+import PrimaryButton from '@/components/ui/PrimaryButton';
+import SecondaryButton from '@/components/ui/SecondaryButton';
+import ActionCard from '@/components/ui/ActionCard';
 
 interface TopicModalProps {
   topic: any;
   onClose: () => void;
-  onStartQuiz: () => void;
-  onStartPractice?: () => void;
-  onStartFlashcards?: () => void;
+  onNavigate: (view: string, topic?: any) => void;
 }
 
-export default function TopicModal({ topic, onClose, onStartQuiz, onStartPractice, onStartFlashcards }: TopicModalProps) {
+export default function TopicModal({ topic, onClose, onNavigate }: TopicModalProps) {
+  // Support multiple field name variations
+  const topicName = topic?.name || topic?.title || topic?.topic || 'Topic';
+  const difficulty = topic?.difficulty || 'Medium';
+  const xp = topic?.xp || 200;
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur flex items-center justify-center p-4 z-50">
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl border border-purple-500/40 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-[1.5rem] max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] border border-gray-100">
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border-b border-purple-500/30 p-6 flex items-start justify-between">
+        <div className="sticky top-0 bg-white border-b border-gray-100 p-6 flex items-start justify-between rounded-t-[1.5rem]">
           <div>
-            <h2 className="text-3xl font-bold text-white mb-2">{topic.name}</h2>
-            <p className="text-purple-200">Difficulty: {topic.difficulty} • {topic.xp} XP</p>
+            <h2 className="text-2xl font-bold mb-2" style={{ color: '#61210F' }}>
+              {topicName}
+            </h2>
+            <p className="text-sm" style={{ color: '#6B7280' }}>
+              Difficulty: {difficulty} • {xp} XP
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-700 rounded-lg transition-all"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-all"
           >
-            <X className="text-white" size={24} />
+            <X size={24} style={{ color: '#6B7280' }} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-8 space-y-6">
-          {/* Description */}
+        <div className="p-6 space-y-6">
+          {/* Learning Objectives */}
           <div>
-            <h3 className="text-xl font-semibold text-white mb-3 flex items-center gap-2">
-              <BookOpen size={20} />
+            <h3 className="text-lg font-bold mb-3 flex items-center gap-2" style={{ color: '#1F2937' }}>
+              <BookOpen size={20} style={{ color: '#3FDFD5' }} />
               Learning Objectives
             </h3>
-            <div className="bg-slate-700/30 rounded-lg p-4 space-y-2 border border-purple-500/20">
-              <p className="text-purple-200">
-                ✓ Master the fundamental concepts of {topic.name}
+            <div className="p-4 rounded-xl space-y-2" style={{ backgroundColor: '#F3F4F6' }}>
+              <p className="text-sm" style={{ color: '#6B7280' }}>
+                ✓ Master the fundamental concepts of {topicName}
               </p>
-              <p className="text-purple-200">
+              <p className="text-sm" style={{ color: '#6B7280' }}>
                 ✓ Solve practice problems with confidence
               </p>
-              <p className="text-purple-200">
+              <p className="text-sm" style={{ color: '#6B7280' }}>
                 ✓ Prepare for interview questions
               </p>
             </div>
           </div>
 
-          {/* Action Options */}
+          {/* Learning Options */}
           <div>
-            <h3 className="text-xl font-semibold text-white mb-3">Learning Options</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Quiz Battle */}
-              <button 
-                onClick={onStartQuiz}
-                className="group relative overflow-hidden rounded-xl p-6 bg-gradient-to-br from-red-600/30 to-orange-600/30 border border-red-500/40 hover:border-red-500/60 transition-all hover:scale-105">
-                <div className="relative z-10 text-center">
-                  <p className="text-3xl mb-2">⚔️</p>
-                  <h4 className="font-semibold text-white mb-1">Combat Mode</h4>
-                  <p className="text-xs text-red-200">Battle quiz monsters</p>
-                </div>
-              </button>
-
-              {/* Flashcards */}
-              <button 
-                onClick={onStartFlashcards}
-                className="group relative overflow-hidden rounded-xl p-6 bg-gradient-to-br from-blue-600/30 to-cyan-600/30 border border-blue-500/40 hover:border-blue-500/60 transition-all hover:scale-105">
-                <div className="relative z-10 text-center">
-                  <p className="text-3xl mb-2">🃏</p>
-                  <h4 className="font-semibold text-white mb-1">Flashcards</h4>
-                  <p className="text-xs text-blue-200">Active recall practice</p>
-                </div>
-              </button>
-
-              {/* Practice Coding */}
-              <button 
-                onClick={onStartPractice}
-                className="group relative overflow-hidden rounded-xl p-6 bg-gradient-to-br from-green-600/30 to-emerald-600/30 border border-green-500/40 hover:border-green-500/60 transition-all hover:scale-105">
-                <div className="relative z-10 text-center">
-                  <p className="text-3xl mb-2">💻</p>
-                  <h4 className="font-semibold text-white mb-1">Code Practice</h4>
-                  <p className="text-xs text-green-200">Editor & runner</p>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Primary Action */}
-          <div className="bg-purple-600/20 border border-purple-500/30 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-              <Zap size={20} className="text-purple-400" />
-              Start Your Quest
+            <h3 className="text-lg font-bold mb-4" style={{ color: '#1F2937' }}>
+              Choose Your Learning Mode
             </h3>
-            <button
-              onClick={onStartQuiz}
-              className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg text-white font-semibold transition-all transform hover:scale-105"
-            >
-              Begin Combat Mode
-            </button>
-            <p className="text-center text-sm text-purple-300 mt-3">
-              Earn {topic.xp} XP upon completion
-            </p>
+            <div className="space-y-3">
+              <ActionCard
+                icon={Target}
+                title="Combat Mode (Quiz)"
+                description="Test your knowledge with interactive quiz battles"
+                iconColor="#3FDFD5"
+                onClick={() => {
+                  onNavigate('combat', topic);
+                  onClose();
+                }}
+              />
+              <ActionCard
+                icon={BookOpen}
+                title="Flashcards"
+                description="Active recall practice with spaced repetition"
+                iconColor="#61210F"
+                onClick={() => {
+                  onNavigate('flashcards', topic);
+                  onClose();
+                }}
+              />
+              <ActionCard
+                icon={Code}
+                title="Code Practice"
+                description="Solve coding challenges with hints and feedback"
+                iconColor="#3FDFD5"
+                onClick={() => {
+                  onNavigate('editor', topic);
+                  onClose();
+                }}
+              />
+            </div>
           </div>
 
-          {/* Stats Preview */}
+          {/* Stats */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/40">
-              <p className="text-slate-400 text-sm">Difficulty</p>
-              <p className="text-2xl font-bold text-white">{topic.difficulty}</p>
+            <div className="bg-white rounded-xl p-4 border border-gray-100">
+              <p className="text-xs font-medium mb-1" style={{ color: '#6B7280' }}>Difficulty</p>
+              <p className="text-2xl font-bold" style={{ color: '#61210F' }}>
+                {difficulty}
+              </p>
             </div>
-            <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600/40">
-              <p className="text-slate-400 text-sm">XP Reward</p>
-              <p className="text-2xl font-bold text-purple-400">+{topic.xp}</p>
+            <div className="bg-white rounded-xl p-4 border border-gray-100">
+              <p className="text-xs font-medium mb-1" style={{ color: '#6B7280' }}>XP Reward</p>
+              <p className="text-2xl font-bold" style={{ color: '#3FDFD5' }}>
+                +{xp}
+              </p>
             </div>
           </div>
         </div>

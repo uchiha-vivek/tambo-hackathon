@@ -1,149 +1,231 @@
 'use client';
 
-import { useState } from 'react';
-import { Upload, Loader } from 'lucide-react';
-import { tamboService } from '@/services/tambo-service';
+import { useState, useRef } from 'react';
+import { Upload, FileText, Sparkles, ArrowLeft } from 'lucide-react';
+import { studyGenieBackend } from '@/services/studygenie-backend';
+import AppShell from '@/components/ui/AppShell';
+import PrimaryButton from '@/components/ui/PrimaryButton';
+import SecondaryButton from '@/components/ui/SecondaryButton';
 
 interface SyllabusUploadProps {
   onUpload: (data: any) => void;
+  onNavigate: (view: string) => void;
 }
 
-export default function SyllabusUpload({ onUpload }: SyllabusUploadProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [fileName, setFileName] = useState<string>('');
+export default function SyllabusUpload({ onUpload, onNavigate }: SyllabusUploadProps) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
-    setFileName(file.name);
-    setIsLoading(true);
+    setIsUploading(true);
+    setUploadProgress(0);
 
     try {
-      // Use Tambo AI to parse syllabus
-      const response = await tamboService.parseSyllabus(file);
-      
-      // Transform Tambo response to match our app's format
-      const syllabus = {
-        title: response.curriculum || 'Study Course',
-        course_id: 'TAMBO-' + Date.now(),
-        units: response.units.map((unit: any) => ({
-          id: unit.id,
-          name: unit.name,
-          topics: unit.topics.map((topic: any) => ({
-            id: topic.id,
-            name: topic.name,
-            difficulty: topic.difficulty,
-            xp: topic.difficulty === 'Easy' ? 100 : topic.difficulty === 'Medium' ? 200 : 300,
-            estimatedHours: topic.estimatedHours,
-            prerequisites: topic.prerequisites
-          }))
-        })),
-        totalXP: response.totalTopics * 150,
-        totalTopics: response.totalTopics,
-        estimatedHours: response.estimatedHours,
-        fileName: file.name
-      };
+      const formData = new FormData();
+      formData.append('file', file);
 
-      setIsLoading(false);
-      onUpload(syllabus);
-    } catch (error) {
-      console.error('Failed to parse syllabus:', error);
-      setIsLoading(false);
-      alert('Failed to parse syllabus. Please try again.');
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      // Use Next.js API proxy route to avoid CORS and connection issues
+      const response = await fetch('/api/upload-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      const data = await response.json();
+      console.log('[Upload] Raw backend response:', data);
+      
+      // Transform backend response to match our app's format
+      let transformedData: any = null;
+      
+      // Backend returns: { skill_map: { skill_map: [...], total_topics: N }, quiz: {...}, interview_qa: {...} }
+      if (data.skill_map) {
+        // Check if skill_map is an object with nested skill_map array
+        const skillMapData = typeof data.skill_map === 'object' && 'skill_map' in data.skill_map
+          ? data.skill_map
+          : { skill_map: Array.isArray(data.skill_map) ? data.skill_map : [], total_topics: 0 };
+        
+        if (skillMapData.skill_map && Array.isArray(skillMapData.skill_map) && skillMapData.skill_map.length > 0) {
+          transformedData = studyGenieBackend.transformSkillMapToUnits(skillMapData);
+          console.log('[Upload] ✅ Transformed syllabus:', {
+            curriculum: transformedData.curriculum,
+            units: transformedData.units?.length || 0,
+            totalTopics: transformedData.units?.reduce((sum: number, u: any) => sum + (u.topics?.length || 0), 0) || 0
+          });
+        } else {
+          console.error('[Upload] ❌ Invalid skill_map structure:', skillMapData);
+          throw new Error('Backend returned empty or invalid skill map');
+        }
+      } else if (data.units && Array.isArray(data.units)) {
+        // Already in correct format, but ensure all topics have required fields
+        transformedData = {
+          curriculum: data.curriculum || data.title || 'AI-Generated Curriculum',
+          units: data.units.map((unit: any) => ({
+            ...unit,
+            id: unit.id || unit.name || `unit-${unit.name}`,
+            name: unit.name || unit.title || 'Unit',
+            topics: (unit.topics || []).map((topic: any, idx: number) => ({
+              ...topic,
+              id: topic.id || `${unit.id || unit.name}-${idx + 1}`,
+              name: topic.name || topic.title || `Topic ${idx + 1}`,
+              difficulty: topic.difficulty || 'Medium',
+            }))
+          }))
+        };
+        console.log('[Upload] ✅ Processed syllabus:', {
+          curriculum: transformedData.curriculum,
+          units: transformedData.units.length,
+          totalTopics: transformedData.units.reduce((sum: number, u: any) => sum + (u.topics?.length || 0), 0)
+        });
+      } else {
+        console.error('[Upload] ❌ Unknown data format:', data);
+        throw new Error('Backend returned data in unknown format');
+      }
+      
+      if (!transformedData || !transformedData.units || transformedData.units.length === 0) {
+        throw new Error('No units or topics found in syllabus data');
+      }
+      
+      onUpload(transformedData);
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      const errorMessage = error.message || 'Failed to upload syllabus.';
+      
+      // Provide helpful error messages
+      if (errorMessage.includes('connect') || errorMessage.includes('refused') || errorMessage.includes('Failed to fetch')) {
+        alert('⚠️ Backend is not running.\n\nPlease start the Flask backend:\n1. Open a terminal\n2. Navigate to studygenie-ai folder\n3. Run: python -m app.main\n\nOr check BACKEND_SETUP.md for detailed instructions.');
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('cold')) {
+        alert('⏰ Backend is starting up (cold start).\n\nPlease wait 30-60 seconds and try again.\n\nThis is normal for Render free tier deployments.');
+      } else {
+        alert(`Failed to upload syllabus: ${errorMessage}\n\nPlease check:\n1. Backend is running (http://localhost:5000)\n2. Backend URL is correct in .env.local\n3. See BACKEND_SETUP.md for setup instructions`);
+      }
+      
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
-  return (
-    <div className="w-full h-full flex items-center justify-center p-6">
-      <div className="max-w-2xl w-full">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold mb-4 text-white">
-            Welcome to StudyGenie
-          </h2>
-          <p className="text-xl text-purple-200 mb-2">
-            Transform your syllabus into an epic RPG adventure
-          </p>
-          <p className="text-purple-300 mb-4">
-            Upload your course material and let's generate your skill map!
-          </p>
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-full">
-            <span className="text-purple-300 text-sm">⚡ Powered by</span>
-            <span className="font-bold text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text">Tambo AI</span>
-          </div>
-        </div>
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && fileInputRef.current) {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      fileInputRef.current.files = dataTransfer.files;
+      handleFileSelect({ target: { files: dataTransfer.files } } as any);
+    }
+  };
 
-        {/* Upload Card */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-dashed border-purple-500/40 hover:border-purple-500/60 transition-all p-12">
-          <label className="flex flex-col items-center justify-center gap-6 cursor-pointer">
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  return (
+    <AppShell
+      navProps={{
+        showBack: true,
+        onBack: () => onNavigate('landing'),
+      }}
+    >
+      <div className="w-full h-[calc(100vh-80px)] overflow-y-auto" style={{ backgroundColor: '#F5F5F5' }}>
+        <div className="max-w-4xl mx-auto px-6 py-12">
+          <div className="mb-8 text-center">
+            <h1 className="text-3xl font-bold mb-2" style={{ color: '#61210F' }}>
+              Upload Your Syllabus
+            </h1>
+            <p className="text-base" style={{ color: '#6B7280' }}>
+              Upload your course material and we'll generate your personalized learning path
+            </p>
+          </div>
+
+          {/* Upload Area */}
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            className="bg-white rounded-[1.5rem] p-12 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-2px_rgba(0,0,0,0.05)] border-2 border-dashed border-gray-300 hover:border-[#3FDFD5] transition-all text-center cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
             <input
+              ref={fileInputRef}
               type="file"
               accept=".pdf,.txt,.md"
-              onChange={handleFileUpload}
-              disabled={isLoading}
+              onChange={handleFileSelect}
               className="hidden"
             />
 
-            {isLoading ? (
-              <div className="flex flex-col items-center gap-4">
-                <div className="relative w-20 h-20">
-                  <Loader className="w-20 h-20 text-purple-400 animate-spin" />
-                </div>
-                <p className="text-purple-300 font-semibold text-lg">
-                  🤖 Tambo AI is analyzing your syllabus...
+            {isUploading ? (
+              <div className="space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-full border-4 border-[#3FDFD5] border-t-transparent animate-spin" />
+                <p className="text-base font-medium" style={{ color: '#61210F' }}>
+                  Analyzing your syllabus...
                 </p>
-                <p className="text-sm text-purple-400">{fileName}</p>
-                <div className="mt-4 space-y-1 text-xs text-purple-300">
-                  <p>✓ Extracting curriculum structure</p>
-                  <p>✓ Identifying topics and difficulty</p>
-                  <p>✓ Calculating XP and prerequisites</p>
+                <div className="w-full max-w-xs mx-auto bg-gray-200 rounded-full h-2">
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{
+                      width: `${uploadProgress}%`,
+                      background: 'linear-gradient(90deg, #3FDFD5, #61210F)',
+                    }}
+                  />
                 </div>
+                <p className="text-sm" style={{ color: '#6B7280' }}>
+                  {uploadProgress}% complete
+                </p>
               </div>
             ) : (
-              <>
-                <div className="p-6 bg-purple-500/10 rounded-xl">
-                  <Upload className="w-16 h-16 text-purple-400" />
+              <div className="space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center" style={{ backgroundColor: '#3FDFD520' }}>
+                  <Upload size={32} style={{ color: '#3FDFD5' }} />
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-white mb-2">
-                    Drop your syllabus here
-                  </p>
-                  <p className="text-purple-300">
-                    or click to select (PDF, TXT, MD)
-                  </p>
+                <h2 className="text-xl font-bold" style={{ color: '#61210F' }}>
+                  Drop your syllabus here
+                </h2>
+                <p className="text-sm" style={{ color: '#6B7280' }}>
+                  or click to select (PDF, TXT, MD)
+                </p>
+                <div className="flex items-center justify-center gap-4 text-sm" style={{ color: '#6B7280' }}>
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} />
+                    <span>Extract units & topics</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <FileText size={16} />
+                    <span>Generate skill tree</span>
+                  </div>
                 </div>
-                <div className="text-sm text-purple-400 text-center">
-                  <p>🎯 We'll extract units, topics, and difficulty levels</p>
-                  <p>⚡ Then generate your personalized skill tree</p>
-                </div>
-              </>
+              </div>
             )}
-          </label>
-        </div>
+          </div>
 
-        {/* Features Preview */}
-        <div className="mt-12 grid grid-cols-3 gap-4">
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-purple-500/20">
-            <p className="text-2xl mb-2">📚</p>
-            <p className="text-sm text-purple-200">
-              <strong>Skill Tree</strong> with prerequisites
-            </p>
-          </div>
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-purple-500/20">
-            <p className="text-2xl mb-2">⚔️</p>
-            <p className="text-sm text-purple-200">
-              <strong>Combat Mode</strong> quizzes
-            </p>
-          </div>
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-purple-500/20">
-            <p className="text-2xl mb-2">🎮</p>
-            <p className="text-sm text-purple-200">
-              <strong>Cozy Room</strong> aesthetics
-            </p>
+          {/* Actions */}
+          <div className="mt-8 flex justify-center gap-4">
+            <SecondaryButton onClick={() => onNavigate('landing')}>
+              Cancel
+            </SecondaryButton>
           </div>
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 }

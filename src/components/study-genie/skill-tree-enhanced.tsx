@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown, Lock, Zap, Flame, Star, AlertTriangle, Crown, TrendingUp } from 'lucide-react';
+import { generateSkillTreeUI } from '@/services/tambo-ui-generator';
 import TopicModal from './modals/topic-modal';
 
 interface SkillTreeEnhancedProps {
@@ -14,6 +15,35 @@ export default function SkillTreeEnhanced({ syllabus, onNavigate, onTopicSelect 
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set(['unit-1']));
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [playerXP, setPlayerXP] = useState(2340);
+
+  // Generate Tambo UI spec on mount (only when syllabus changes)
+  useEffect(() => {
+    async function generateTamboUI() {
+      if (!syllabus) return;
+      
+      try {
+        const userProgress = {
+          topics: {},
+          xp: playerXP
+        };
+        
+        const spec = await generateSkillTreeUI(syllabus, userProgress);
+        // Log to show Tambo UI is working
+        console.log('🎨 [TAMBO UI] Skill Tree layout generated:', {
+          layout: spec.props.layout,
+          topics: spec.props.topics?.length || 0,
+          connections: spec.props.connections?.length || 0,
+          completionRate: `${spec.props.completionRate?.toFixed(1) || 0}%`
+        });
+      } catch (error) {
+        console.error('Tambo UI generation error:', error);
+      }
+    }
+    
+    generateTamboUI();
+    // Only regenerate when syllabus changes, not on every playerXP update
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syllabus]);
 
   // Simulate topic states
   const topicStates = {
@@ -145,7 +175,7 @@ export default function SkillTreeEnhanced({ syllabus, onNavigate, onTopicSelect 
   };
 
   return (
-    <div className="w-full h-full overflow-y-auto bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-950">
+    <div className="w-full h-full overflow-y-auto bg-gradient-to-br from-blue-50 via-white to-pink-50">
       {/* Header */}
       <div className="sticky top-0 bg-gradient-to-r from-slate-950/95 via-purple-950/95 to-slate-950/95 backdrop-blur-xl border-b border-purple-500/30 px-8 py-6 z-20 shadow-xl">
         <div className="max-w-7xl mx-auto">

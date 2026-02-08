@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Volume2, VolumeX, Zap, Coffee, Music, Cloud, Flame } from 'lucide-react';
+import { Volume2, VolumeX, Zap, Coffee, Music, Cloud, Flame, ArrowLeft } from 'lucide-react';
 
 interface CozyRoomEnhancedProps {
   syllabus: any;
@@ -162,6 +162,17 @@ export default function CozyRoomEnhanced({ syllabus, onNavigate }: CozyRoomEnhan
             {petMood === 'happy' ? 'Keep studying! 💪' : 'Meow...'}
           </p>
         </div>
+      </div>
+
+      {/* Back Button - Top Left */}
+      <div className="absolute top-8 left-8 z-20">
+        <button
+          onClick={() => onNavigate('dashboard')}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-800/60 hover:bg-slate-700/60 border border-purple-500/30 hover:border-purple-500/50 rounded-lg text-purple-200 hover:text-white transition-all group backdrop-blur"
+        >
+          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="font-medium">Back to Dashboard</span>
+        </button>
       </div>
 
       {/* Control Panel - Top Right */}

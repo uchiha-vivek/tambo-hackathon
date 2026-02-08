@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, Loader } from 'lucide-react';
+import { Upload, Loader, ArrowLeft } from 'lucide-react';
 import { studyGenieBackend } from '@/services/studygenie-backend';
 
 interface SyllabusUploadProps {
   onUpload: (data: any) => void;
+  onNavigate?: (view: string) => void;
 }
 
-export default function SyllabusUpload({ onUpload }: SyllabusUploadProps) {
+export default function SyllabusUpload({ onUpload, onNavigate }: SyllabusUploadProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [fileName, setFileName] = useState<string>('');
   const [backendStatus, setBackendStatus] = useState<'unknown' | 'checking' | 'ready' | 'cold'>('unknown');
@@ -199,25 +200,38 @@ export default function SyllabusUpload({ onUpload }: SyllabusUploadProps) {
   return (
     <div className="w-full h-full flex items-center justify-center p-6">
       <div className="max-w-2xl w-full">
+        {/* Back Button */}
+        {onNavigate && (
+          <div className="mb-6">
+            <button
+              onClick={() => onNavigate('landing')}
+              className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl text-gray-700 hover:text-gray-900 transition-all group shadow-sm"
+            >
+              <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+              <span className="font-medium">Back to Home</span>
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold mb-4 text-white">
+          <h2 className="text-4xl font-bold mb-4 text-gray-800">
             Welcome to StudyGenie
           </h2>
-          <p className="text-xl text-purple-200 mb-2">
-            Transform your syllabus into an epic RPG adventure
+          <p className="text-xl text-gray-600 mb-2">
+            Transform your syllabus into a learning adventure
           </p>
-          <p className="text-purple-300 mb-4">
+          <p className="text-gray-500 mb-4">
             Upload your course material and let's generate your skill map!
           </p>
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-full">
-            <span className="text-purple-300 text-sm">⚡ Powered by</span>
-            <span className="font-bold text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text">Gemini 2.0 Flash</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-purple-200 rounded-full shadow-sm">
+            <span className="text-gray-600 text-sm">⚡ Powered by</span>
+            <span className="font-bold text-purple-600">Groq AI</span>
           </div>
         </div>
 
         {/* Upload Card */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-dashed border-purple-500/40 hover:border-purple-500/60 transition-all p-12">
+        <div className="bg-white rounded-2xl border-2 border-dashed border-gray-300 hover:border-purple-400 transition-all p-12 shadow-sm">
           <label className="flex flex-col items-center justify-center gap-6 cursor-pointer">
             <input
               type="file"
@@ -230,13 +244,13 @@ export default function SyllabusUpload({ onUpload }: SyllabusUploadProps) {
             {isLoading ? (
               <div className="flex flex-col items-center gap-4">
                 <div className="relative w-20 h-20">
-                  <Loader className="w-20 h-20 text-purple-400 animate-spin" />
+                  <Loader className="w-20 h-20 text-purple-600 animate-spin" />
                 </div>
-                <p className="text-purple-300 font-semibold text-lg">
+                <p className="text-gray-700 font-semibold text-lg">
                   {uploadProgress || '🤖 AI is analyzing your syllabus...'}
                 </p>
-                <p className="text-sm text-purple-400">{fileName}</p>
-                <div className="mt-4 space-y-1 text-xs text-purple-300">
+                <p className="text-sm text-gray-600">{fileName}</p>
+                <div className="mt-4 space-y-1 text-xs text-gray-500">
                   <p>✓ Extracting topics from PDF</p>
                   <p>✓ Generating skill map with AI</p>
                   <p>✓ Creating quiz questions</p>
@@ -245,14 +259,14 @@ export default function SyllabusUpload({ onUpload }: SyllabusUploadProps) {
               </div>
             ) : (
               <>
-                <div className="p-6 bg-purple-500/10 rounded-xl">
-                  <Upload className="w-16 h-16 text-purple-400" />
+                <div className="p-6 bg-purple-50 rounded-xl">
+                  <Upload className="w-16 h-16 text-purple-600" />
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-white mb-2">
+                  <p className="text-2xl font-bold text-gray-800 mb-2">
                     Drop your syllabus here
                   </p>
-                  <p className="text-purple-300">
+                  <p className="text-gray-600">
                     or click to select (PDF, TXT, MD)
                   </p>
                   
@@ -284,7 +298,7 @@ export default function SyllabusUpload({ onUpload }: SyllabusUploadProps) {
 
         {/* Warm Up Button */}
         {!isLoading && backendStatus !== 'ready' && (
-          <div className="mt-6 text-center space-y-3">
+          <div className="mt-6 text-center">
             <button
               onClick={checkBackendHealth}
               disabled={backendStatus === 'checking'}
@@ -296,25 +310,14 @@ export default function SyllabusUpload({ onUpload }: SyllabusUploadProps) {
                 <>🚀 Warm Up Backend (First Time?)</>
               )}
             </button>
-            <div>
-              <button
-                onClick={loadDemoData}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                🎮 Try Demo (No Backend Required)
-              </button>
-            </div>
-            <p className="text-sm text-purple-300">
-              Backend timeout? Try the demo to explore the app!
-            </p>
           </div>
         )}
 
         {/* Features Preview */}
         <div className="mt-12 grid grid-cols-3 gap-4">
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-purple-500/20">
+          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
             <p className="text-2xl mb-2">📚</p>
-            <p className="text-sm text-purple-200">
+            <p className="text-sm text-gray-700">
               <strong>Skill Tree</strong> with prerequisites
             </p>
           </div>

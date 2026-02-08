@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, RotateCw, CheckCircle, XCircle, Sparkles } from 'lucide-react';
+import { ChevronRight, ChevronLeft, RotateCw, CheckCircle, XCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import { studyGenieBackend, Flashcard as BackendFlashcard } from '@/services/studygenie-backend';
 
 interface Flashcard {
@@ -164,9 +164,10 @@ export default function FlashcardView({ topic, onComplete, onNavigate }: Flashca
             </div>
             <button
               onClick={() => onNavigate('skillTree')}
-              className="px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg text-white transition-all"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 border border-purple-500/30 hover:border-purple-500/50 rounded-lg text-purple-200 hover:text-white transition-all group"
             >
-              Back to Skill Tree
+              <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+              <span className="font-medium">Back to Skill Tree</span>
             </button>
           </div>
 

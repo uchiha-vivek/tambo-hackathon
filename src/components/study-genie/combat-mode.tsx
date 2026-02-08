@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Heart, Zap, Volume2, VolumeX } from 'lucide-react';
+import { Heart, Zap, Volume2, VolumeX, ArrowLeft } from 'lucide-react';
 import { studyGenieBackend } from '@/services/studygenie-backend';
+import { generateQuizUI } from '@/services/tambo-ui-generator';
 
 interface CombatModeProps {
   topic: any;
@@ -50,6 +51,22 @@ export default function CombatMode({ topic, onComplete, onNavigate }: CombatMode
       try {
         const topicName = topic?.name || 'General Knowledge';
         const topicDifficulty = (topic?.difficulty || 'Medium').toLowerCase() as 'easy' | 'medium' | 'hard';
+        
+        // Generate Tambo UI spec for quiz interface
+        try {
+          const uiSpec = await generateQuizUI(topic, topicDifficulty, {
+            averageScore: 0,
+            totalAttempts: 0
+          });
+          console.log('🎨 [TAMBO UI] Quiz interface generated:', {
+            theme: uiSpec.props.theme,
+            difficulty: topicDifficulty,
+            encouragementMode: uiSpec.props.encouragementMode,
+            challengeMode: uiSpec.props.challengeMode
+          });
+        } catch (uiError) {
+          console.error('Tambo UI generation error:', uiError);
+        }
         
         // Generate quiz using real backend
         const quizResponse = await studyGenieBackend.generateQuiz(topicName, topicDifficulty, 10);
@@ -151,51 +168,64 @@ export default function CombatMode({ topic, onComplete, onNavigate }: CombatMode
   }
 
   return (
-    <div className="w-full h-full bg-gradient-to-b from-purple-900 to-slate-900 overflow-hidden">
-      {/* Health Bars */}
-      <div className="bg-slate-900/80 backdrop-blur border-b border-purple-500/30 px-8 py-4">
-        <div className="max-w-7xl mx-auto grid grid-cols-3 gap-8 items-center">
-          {/* Player Health */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Heart className="text-red-400" size={20} />
-              <span className="text-white font-semibold">Your Health</span>
-            </div>
-            <div className="w-full h-4 bg-slate-700 rounded-full overflow-hidden border border-red-500/40">
-              <div
-                className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-300"
-                style={{ width: `${playerHP}%` }}
-              />
-            </div>
-            <p className="text-sm text-red-300 mt-1">{playerHP} HP</p>
+    <div className="w-full h-full bg-gradient-to-b from-purple-900 to-slate-900 flex flex-col overflow-hidden">
+      {/* Health Bars - Fixed Header */}
+      <div className="bg-white/90 backdrop-blur border-b border-gray-200 px-4 sm:px-8 py-4 flex-shrink-0 shadow-sm">
+        <div className="max-w-7xl mx-auto">
+          {/* Back Button */}
+          <div className="mb-4">
+            <button
+              onClick={() => onNavigate('skillTree')}
+              className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl text-gray-700 hover:text-gray-900 transition-all group shadow-sm"
+            >
+              <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+              <span className="font-medium">Back to Skill Tree</span>
+            </button>
           </div>
-
-          {/* VS */}
-          <div className="text-center">
-            <p className="text-2xl font-bold text-purple-300">VS</p>
-          </div>
-
-          {/* Enemy Health */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-white font-semibold">{getEnemyType()}</span>
+          
+          <div className="grid grid-cols-3 gap-8 items-center">
+            {/* Player Health */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Heart className="text-red-400" size={20} />
+                <span className="text-white font-semibold">Your Health</span>
+              </div>
+              <div className="w-full h-4 bg-slate-700 rounded-full overflow-hidden border border-red-500/40">
+                <div
+                  className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-300"
+                  style={{ width: `${playerHP}%` }}
+                />
+              </div>
+              <p className="text-sm text-red-300 mt-1">{playerHP} HP</p>
             </div>
-            <div className="w-full h-4 bg-slate-700 rounded-full overflow-hidden border border-orange-500/40">
-              <div
-                className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-300"
-                style={{ width: `${enemyHP}%` }}
-              />
+
+            {/* VS */}
+            <div className="text-center">
+              <p className="text-2xl font-bold text-purple-300">VS</p>
             </div>
-            <p className="text-sm text-orange-300 mt-1">{enemyHP} HP</p>
+
+            {/* Enemy Health */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-white font-semibold">{getEnemyType()}</span>
+              </div>
+              <div className="w-full h-4 bg-slate-700 rounded-full overflow-hidden border border-orange-500/40">
+                <div
+                  className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-300"
+                  style={{ width: `${enemyHP}%` }}
+                />
+              </div>
+              <p className="text-sm text-orange-300 mt-1">{enemyHP} HP</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Combat Arena */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="max-w-4xl w-full">
+      {/* Combat Arena - Scrollable */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+        <div className="max-w-4xl mx-auto w-full pb-8">
           {/* Question Card */}
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-purple-500/40 p-8 mb-8">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border-2 border-purple-500/40 p-6 sm:p-8 mb-6">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="text-lg font-semibold text-purple-300 mb-1">
@@ -219,13 +249,13 @@ export default function CombatMode({ topic, onComplete, onNavigate }: CombatMode
               </div>
             </div>
 
-            <h2 className="text-2xl font-bold text-white mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-6">
               {questions[currentQuestion].question}
             </h2>
 
             {/* Multiple Choice Options */}
             {questions[currentQuestion].type === 'mcq' && (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {questions[currentQuestion].options!.map((option, idx) => {
                   const isSelected = selectedAnswer === idx;
                   const isCorrect = idx === questions[currentQuestion].correctAnswer;
@@ -265,23 +295,23 @@ export default function CombatMode({ topic, onComplete, onNavigate }: CombatMode
 
           {/* Action Buttons */}
           {answered && (
-            <div className="flex gap-4 justify-center">
+            <div className="flex gap-4 justify-center mb-6">
               {selectedAnswer === questions[currentQuestion].correctAnswer ? (
-                <div className="text-center">
-                  <p className="text-2xl mb-4">🎉 Correct! Enemy defeated!</p>
+                <div className="text-center w-full">
+                  <p className="text-xl sm:text-2xl mb-4">🎉 Correct! Enemy defeated!</p>
                   <button
                     onClick={goToNextQuestion}
-                    className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-lg text-white font-bold transition-all transform hover:scale-105"
+                    className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-lg text-white font-bold transition-all transform hover:scale-105 shadow-lg"
                   >
                     {questionsRemaining > 0 ? `Next Battle (${questionsRemaining} remaining)` : 'Complete Battle'}
                   </button>
                 </div>
               ) : (
-                <div className="text-center">
-                  <p className="text-2xl mb-4">❌ Wrong! Try the next one.</p>
+                <div className="text-center w-full">
+                  <p className="text-xl sm:text-2xl mb-4">❌ Wrong! Try the next one.</p>
                   <button
                     onClick={goToNextQuestion}
-                    className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg text-white font-bold transition-all transform hover:scale-105"
+                    className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg text-white font-bold transition-all transform hover:scale-105 shadow-lg"
                   >
                     {questionsRemaining > 0 ? `Next Battle (${questionsRemaining} remaining)` : 'Complete Battle'}
                   </button>
@@ -290,18 +320,21 @@ export default function CombatMode({ topic, onComplete, onNavigate }: CombatMode
             </div>
           )}
 
-          {/* Progress */}
-          <div className="mt-8 bg-slate-800/50 rounded-lg p-4 border border-purple-500/20">
+          {/* Progress - Fixed at bottom */}
+          <div className="sticky bottom-0 bg-slate-800/95 backdrop-blur border-t border-purple-500/20 rounded-lg p-4 mt-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-purple-300 text-sm">Battle Progress</p>
-              <p className="text-sm text-purple-400">{currentQuestion + 1}/{questions.length}</p>
+              <p className="text-purple-300 text-sm font-semibold">Battle Progress</p>
+              <p className="text-sm text-purple-400 font-bold">{currentQuestion + 1}/{questions.length}</p>
             </div>
-            <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+            <div className="w-full h-3 bg-slate-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all"
-                style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
+                className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500 shadow-lg shadow-purple-500/50"
+                style={{ width: `${Math.min(100, ((currentQuestion) / questions.length) * 100)}%` }}
               />
             </div>
+            <p className="text-xs text-purple-400 mt-2 text-center">
+              {questionsRemaining > 0 ? `${questionsRemaining} questions remaining` : 'Final question!'}
+            </p>
           </div>
         </div>
       </div>

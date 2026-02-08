@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Play, Pause, RotateCcw, Send, Loader, Lightbulb, Book, ChevronDown, AlertCircle } from 'lucide-react';
+import { Play, Pause, RotateCcw, Send, Loader, Lightbulb, Book, ChevronDown, AlertCircle, ArrowLeft } from 'lucide-react';
 import { studyGenieBackend, CodingChallenge } from '@/services/studygenie-backend';
 
 interface PracticeEditorEnhancedProps {
   topic: string;
+  onNavigate?: (view: string) => void;
 }
 
-export default function PracticeEditorEnhanced({ topic }: PracticeEditorEnhancedProps) {
+export default function PracticeEditorEnhanced({ topic, onNavigate }: PracticeEditorEnhancedProps) {
   const [challenge, setChallenge] = useState<CodingChallenge['challenge'] | null>(null);
   const [code, setCode] = useState('');
   const [output, setOutput] = useState('');
@@ -149,10 +150,11 @@ export default function PracticeEditorEnhanced({ topic }: PracticeEditorEnhanced
               Reset
             </button>
             <button
-              onClick={() => {/* Navigate back */}}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg text-white font-semibold transition-all"
+              onClick={() => onNavigate?.('skillTree')}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg text-white font-semibold transition-all group"
             >
-              Back
+              <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+              <span>Back to Skill Tree</span>
             </button>
           </div>
         </div>
